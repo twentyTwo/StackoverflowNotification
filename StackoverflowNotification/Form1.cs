@@ -1,15 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿// // --------------------------------------------------------------------------------------------------------------------
+// // <copyright file="noor.alam.shuvo@gmail.com" company="">
+// //   Copyright @ 2017
+// // </copyright>
+// <summary>
+// // </summary>
+// // --------------------------------------------------------------------------------------------------------------------
 
 namespace StackoverflowNotification
 {
+    using System;
+    using System.Diagnostics;
+    using System.Drawing;
+    using System.Text;
+    using System.Windows.Forms;
+
     using StackExchange.StacMan;
 
     using Tulpep.NotificationWindow;
@@ -18,43 +22,71 @@ namespace StackoverflowNotification
     {
         public Form1()
         {
-            InitializeComponent();
+            this.InitializeComponent();
+            this.Interval = 10000;
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        public int Interval { get; set; }
+
+        private void Button1Click(object sender, EventArgs e)
         {
+            this.button1.Enabled = false;
+            this.timer1.Interval = this.Interval;
+            this.timer1.Enabled = true;
+            this.timer1.Tick += new EventHandler(this.OnTimerEvent);
+        }
 
+        public string FetchNotification()
+        {
+            var client = new StacManClient();
 
+            var response =
+                client.Questions.GetAll("stackoverflow", page: 1, pagesize: 10, tagged: "sql-server", order: Order.Desc)
+                    .Result;
 
-            var popupNotifier = new PopupNotifier();
-            var client  = new StacManClient();
+            var content = new StringBuilder();
 
-
-            var response = client.Questions.GetAll("stackoverflow",
-            page: 1,
-            pagesize: 10,
-            tagged:"sql-server",
-            order: Order.Desc).Result;
-
-            StringBuilder content = new StringBuilder();
-
-            int i = 0;
+            var i = 0;
 
             foreach (var question in response.Data.Items)
             {
                 content.Append($"{++i}. {question.Title}\n");
             }
 
+            return content.ToString();
+        }
 
-            popupNotifier.TitleText = "Recent Stackoverflow Post";
-            popupNotifier.BodyColor = Color.GhostWhite;
-            popupNotifier.BorderColor = Color.DarkRed;
-            popupNotifier.HeaderColor = Color.CadetBlue;
+        public void DisplayPopup(string popupContent)
+        {
+            var popupNotifier = new PopupNotifier
+                                    {
+                                        TitleText = "Recent Stackoverflow Post",
+                                        BodyColor = Color.GhostWhite,
+                                        BorderColor = Color.DarkRed,
+                                        HeaderColor = Color.CadetBlue,
+                                        ContentText = popupContent,
+                                        IsRightToLeft = false,
+                                        Size = new Size(500, 500)
+                                    };
 
-            popupNotifier.ContentText = content.ToString();
-            popupNotifier.IsRightToLeft = false;
-            popupNotifier.Size = new Size(500, 20*i);
             popupNotifier.Popup();
+        }
+
+        public void OnTimerEvent(object source, EventArgs e)
+        {
+            Debug.WriteLine("Inside timer");
+            var fetchedMessage = this.FetchNotification();
+            this.DisplayPopup(fetchedMessage);
+        }
+
+        private void Button2Click(object sender, EventArgs e)
+        {
+            if (this.button1.Enabled)
+            {
+                return;
+            }
+            this.timer1.Stop();
+            this.button1.Enabled = true;
         }
     }
 }
