@@ -9,8 +9,8 @@
 namespace StackoverflowNotification
 {
     using System;
-    using System.Diagnostics;
     using System.Drawing;
+    using System.Linq;
     using System.Text;
     using System.Windows.Forms;
 
@@ -18,55 +18,54 @@ namespace StackoverflowNotification
 
     using Tulpep.NotificationWindow;
 
-    public partial class Form1 : Form
+    public partial class FormSettings : Form
     {
-        public Form1()
+        public FormSettings()
         {
             this.InitializeComponent();
-            this.Interval = 10000;
+            this.Interval = 5000;
         }
 
         public int Interval { get; set; }
 
-        private void Button1Click(object sender, EventArgs e)
+        private void ButtonStartClick(object sender, EventArgs e)
         {
             this.button1.Enabled = false;
-            this.timer1.Interval = this.Interval;
-            this.timer1.Enabled = true;
-            this.timer1.Tick += new EventHandler(this.OnTimerEvent);
+            this.timer.Interval = this.Interval;
+            this.timer.Enabled = true;
+            this.timer.Tick += new EventHandler(this.OnTimerEvent);
         }
 
-        public string FetchNotification()
+        public StacManResponse<Question> FetchNotification()
         {
-            var client = new StacManClient();
+            return
+                new StacManClient().Questions.GetAll(
+                    "stackoverflow",
+                    page: 1,
+                    pagesize: 10,
+                    tagged: "sql-server",
+                    order: Order.Desc).Result;
+        }
 
-            var response =
-                client.Questions.GetAll("stackoverflow", page: 1, pagesize: 10, tagged: "sql-server", order: Order.Desc)
-                    .Result;
-
-            var content = new StringBuilder();
-
+        public void DisplayPopup(StacManResponse<Question> notificationMessage)
+        {
             var i = 0;
-
-            foreach (var question in response.Data.Items)
+            var popupText = new StringBuilder();
+            var questions = notificationMessage.Data.Items;
+            foreach (var question in questions)
             {
-                content.Append($"{++i}. {question.Title}\n");
+                popupText.AppendLine($"{i++}. {question.Title} [Link]");
             }
 
-            return content.ToString();
-        }
-
-        public void DisplayPopup(string popupContent)
-        {
             var popupNotifier = new PopupNotifier
                                     {
                                         TitleText = "Recent Stackoverflow Post",
                                         BodyColor = Color.GhostWhite,
                                         BorderColor = Color.DarkRed,
                                         HeaderColor = Color.CadetBlue,
-                                        ContentText = popupContent,
-                                        IsRightToLeft = false,
-                                        Size = new Size(500, 500)
+                                        ContentText = popupText.ToString(),
+                                        Delay = 5000,
+                                        Size = new Size(500, questions.Count() * 22)
                                     };
 
             popupNotifier.Popup();
@@ -74,19 +73,19 @@ namespace StackoverflowNotification
 
         public void OnTimerEvent(object source, EventArgs e)
         {
-            Debug.WriteLine("Inside timer");
             var fetchedMessage = this.FetchNotification();
             this.DisplayPopup(fetchedMessage);
         }
 
-        private void Button2Click(object sender, EventArgs e)
+        private void ButtonStopClick(object sender, EventArgs e)
         {
             if (this.button1.Enabled)
             {
                 return;
             }
-            this.timer1.Stop();
+            this.timer.Stop();
             this.button1.Enabled = true;
         }
+
     }
 }
